@@ -1,0 +1,34 @@
+name: Process init_boot.img with SuSFS
+on:
+  workflow_dispatch:
+    inputs:
+      boot_url:
+        description: 'URL to init_boot.img'
+        required: true
+jobs:
+  process-boot:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip curl
+    - name: Download init_boot.img
+      run: |
+        curl -L ${{ github.event.inputs.boot_url }} -o init_boot.img
+    - name: Download ksud and magiskboot
+      run: |
+        curl -L https://github.com/tiann/KernelSU/releases/download/v1.0.0/ksud -o ksud
+        curl -L https://github.com/topjohnwu/Magisk/releases/download/v27.0/magiskboot -o magiskboot
+        chmod +x ksud magiskboot
+    - name: Patch init_boot image with SuSFS
+      run: |
+        ./ksud boot-patch -b init_boot.img --kmi android14-6.1 --magiskboot ./magiskboot --out patched_susfs_init_boot.img
+        echo "KERNEL_FMT: $(./magiskboot unpack init_boot.img | grep KERNEL_FMT || echo 'Not found')"
+    - name: Upload patched image
+      uses: actions/upload-artifact@v3
+      with:
+        name: patched_susfs_init_boot
+        path: patched_susfs_init_boot.img
